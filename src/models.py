@@ -2,10 +2,18 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import String, Boolean, Integer, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List
+from enum import Enum as Penum
 
 db = SQLAlchemy()
 
-followers = db.Table(
+class MediaType(Penum):
+
+    IMG="imagenes"
+    VIDEO= "video"
+
+
+
+followers_table = db.Table(
     "followers",
     db.Column("user_from_id", db.Integer, db.ForeignKey("users.id")),
     db.Column("user_to_id", db.Integer, db.ForeignKey("users.id"))
@@ -23,8 +31,17 @@ class User(db.Model):
     posts: Mapped[List["Post"]]= relationship(back_populates="user")
     comments: Mapped[List["Comment"]]= relationship(back_populates="user")
 
-    #no se como establecer la relationship con la tabla followers de arriba sacando los dos user from id y user to id de aqui.
-
+    followers:Mapped[List["User"]]=relationship(
+        "User",
+        primaryjoin=followers_table.c.user_to_id == id,
+        secondaryjoin=followers_table.c.user_from_id == id,
+        back_populates="following", secondary="followers")
+    
+    following:Mapped[List["User"]]=relationship(
+        "User",
+        primaryjoin=followers_table.c.user_from_id == id,
+        secondaryjoin=followers_table.c.user_to_id == id,
+        back_populates="followers", secondary="followers")
     
 class Post(db.Model):
     __tablename__= "posts"   
@@ -42,8 +59,7 @@ class Media(db.Model):
     __tablename__= "medias"
     id: Mapped[int] = mapped_column(primary_key=True)
     url: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
-    type: Mapped[str] = mapped_column(nullable=False)#aqui nose como poner el enum en mapped con Enum me da error al migrar
-    
+    type: Mapped["MediaType"] = mapped_column(Enum(MediaType))
     post_id:Mapped[int] = mapped_column(Integer, db.ForeignKey("posts.id"), nullable=False)
     post:Mapped["Post"]= relationship(back_populates="medias")
 
